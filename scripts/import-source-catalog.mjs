@@ -1,13 +1,15 @@
 import fs from "node:fs";
 import path from "node:path";
+import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 
 const project = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const sourceRoot = path.resolve(process.argv[2] ?? "C:/Users/ouday/Downloads/IDS database/IDS database");
-const rennsteigFile = path.join(project, ".catalog-import", "rennsteig.json");
+const tempDir = path.join(project, ".catalog-import");
+const rennsteigFile = path.join(tempDir, "rennsteig.json");
 const outputFile = path.join(project, "src/data/source-products.json");
-const imageDir = path.join(project, "public/catalog");
-const imageLimitPerBrand = 18;
+const imageManifestFile = path.join(tempDir, "image-manifest.json");
+const imageManifest = new Map();
 
 function csvRows(relativePath) {
   const buffer = fs.readFileSync(path.join(sourceRoot, relativePath));
@@ -49,7 +51,7 @@ function product({ brand, ref, category, name, description = "", specs = [], ima
   return { id, ref, brand, category, name: localized(name), description: localized(description), image: null, specs, placeholder: false, _imageSource: imageSource, _sourceImages: sourceImages };
 }
 
-function mapRows(brand, category, rows, build, imageLimit = imageLimitPerBrand) {
+function mapRows(brand, category, rows, build) {
   const products = rows.map((row) => build(row)).filter(Boolean);
   const seen = new Set();
   const unique = products.filter((p) => {
@@ -60,24 +62,27 @@ function mapRows(brand, category, rows, build, imageLimit = imageLimitPerBrand) 
   const eligible = unique.map((p, i) => p._imageSource && fs.existsSync(p._imageSource) && fs.statSync(p._imageSource).isFile() ? i : -1).filter((i) => i >= 0);
   const selected = new Set();
   if (eligible.length) {
-    const count = Math.min(imageLimit, eligible.length);
+    const count = eligible.length;
     for (let n = 0; n < count; n++) selected.add(eligible[Math.floor(n * eligible.length / count)]);
   }
   unique.forEach((p, i) => {
     if (selected.has(i)) {
+      const sourceKey = path.resolve(p._imageSource).toLocaleLowerCase();
       const ext = path.extname(p._imageSource).toLocaleLowerCase();
-      const filename = `${brand}-${slug(p.id)}${ext}`;
-      fs.copyFileSync(p._imageSource, path.join(imageDir, filename));
+      const targetExt = ext === ".webp" ? ".webp" : ".jpg";
+      const hash = createHash("sha1").update(path.relative(sourceRoot, p._imageSource).toLocaleLowerCase()).digest("hex").slice(0, 12);
+      const filename = `${brand}-${hash}${targetExt}`;
+      imageManifest.set(sourceKey, { source: p._imageSource, filename });
       p.image = `/catalog/${filename}`;
     }
     delete p._imageSource;
     delete p._sourceImages;
   });
-  console.log(`${brand}: ${unique.length} products, ${selected.size} product photos`);
+  console.log(`${brand}: ${unique.length} products, ${eligible.length} matching product photos`);
   return unique;
 }
 
-fs.mkdirSync(imageDir, { recursive: true });
+fs.mkdirSync(tempDir, { recursive: true });
 const imported = [];
 
 const hazetRows = csvRows("Hazet/Hazet.csv");
@@ -143,4 +148,10 @@ imported.push(...mapRows("rennsteig", "tools", rennsteigRows, (r) => {
 }));
 
 fs.writeFileSync(outputFile, `${JSON.stringify(imported)}\n`, "utf8");
+const manifestRows = [...imageManifest.values()];
+fs.writeFileSync(imageManifestFile, `${JSON.stringify(manifestRows)}\n`, "utf8");
+for (const brand of new Set(manifestRows.map((item) => item.filename.split("-")[0]))) {
+  fs.writeFileSync(path.join(tempDir, `image-manifest-${brand}.json`), `${JSON.stringify(manifestRows.filter((item) => item.filename.startsWith(`${brand}-`)))}\n`, "utf8");
+}
 console.log(`Wrote ${imported.length} real catalogue entries to ${path.relative(project, outputFile)}`);
+console.log(`Wrote ${imageManifest.size} image tasks to ${path.relative(project, imageManifestFile)}`);
