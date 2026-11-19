@@ -49,7 +49,11 @@ async function createUploadUrl(request: ApiRequest, response: ApiResponse): Prom
 
     response.setHeader("Cache-Control", "no-store");
     response.status(200).json({ pathname, presignedUrl, contentType });
-  } catch {
+  } catch (error) {
+    const detail = error instanceof Error
+      ? `${error.name}; code=${"code" in error ? String(error.code) : "unknown"}; status=${"statusCode" in error ? String(error.statusCode) : "unknown"}`
+      : "unknown error";
+    console.error(`[rfq-attachments] upload URL creation failed (${detail})`);
     jsonError(response, "UPLOAD_URL_FAILED", 503);
   }
 }
