@@ -17,20 +17,21 @@ async function createUploadUrl(request: ApiRequest, response: ApiResponse): Prom
     return jsonError(response, "BLOB_NOT_CONFIGURED", 503);
   }
 
+  const body = request.body as { name?: unknown; size?: unknown } | undefined;
+  if (!body || typeof body.name !== "string" || typeof body.size !== "number") return jsonError(response, "INVALID_FILE", 400);
+
+  const extension = body.name.split(".").pop()?.toLowerCase() ?? "";
+  const contentType = attachmentTypes[extension];
+  if (!contentType) return jsonError(response, "FILE_TYPE_NOT_ALLOWED", 400);
+  if (!Number.isInteger(body.size) || body.size < 1 || body.size > MAX_ATTACHMENT_BYTES) {
+    return jsonError(response, "FILE_SIZE_NOT_ALLOWED", 400);
+  }
+
+  const pathname = `rfq-attachments/${randomUUID()}.${extension}`;
+  const validUntil = Date.now() + 5 * 60 * 1000;
+  let clientToken: string;
   try {
-    const body = request.body as { name?: unknown; size?: unknown } | undefined;
-    if (!body || typeof body.name !== "string" || typeof body.size !== "number") return jsonError(response, "INVALID_FILE", 400);
-
-    const extension = body.name.split(".").pop()?.toLowerCase() ?? "";
-    const contentType = attachmentTypes[extension];
-    if (!contentType) return jsonError(response, "FILE_TYPE_NOT_ALLOWED", 400);
-    if (!Number.isInteger(body.size) || body.size < 1 || body.size > MAX_ATTACHMENT_BYTES) {
-      return jsonError(response, "FILE_SIZE_NOT_ALLOWED", 400);
-    }
-
-    const pathname = `rfq-attachments/${randomUUID()}.${extension}`;
-    const validUntil = Date.now() + 5 * 60 * 1000;
-    const clientToken = await generateClientTokenFromReadWriteToken({
+    clientToken = await generateClientTokenFromReadWriteToken({
       token: process.env.BLOB_READ_WRITE_TOKEN,
       pathname,
       allowedContentTypes: [contentType],
@@ -39,9 +40,6 @@ async function createUploadUrl(request: ApiRequest, response: ApiResponse): Prom
       addRandomSuffix: false,
       allowOverwrite: false,
     });
-
-    response.setHeader("Cache-Control", "no-store");
-    response.status(200).json({ pathname, clientToken, contentType });
   } catch (error) {
     const message = error instanceof Error ? error.message : "unknown error";
     const safeMessage = message
@@ -50,9 +48,13 @@ async function createUploadUrl(request: ApiRequest, response: ApiResponse): Prom
       .replace(/https?:\/\/\S+/g, "[url]")
       .replace(/[A-Za-z0-9_-]{32,}/g, "[redacted]")
       .slice(0, 240);
-    console.error(`[rfq-attachments] client token generation failed (${safeMessage})`);
+    console.error(`[rfq-attachments] client-token generation failed (${safeMessage})`);
     jsonError(response, "UPLOAD_URL_FAILED", 503);
+    return;
   }
+
+  response.setHeader("Cache-Control", "no-store");
+  response.status(200).json({ pathname, clientToken, contentType });
 }
 
 async function downloadAttachment(request: ApiRequest, response: ApiResponse): Promise<void> {
