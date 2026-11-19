@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { head } from "@vercel/blob";
-import { getDatabase } from "./_database";
-import { attachmentTypes, isAdminAuthorized, jsonError, MAX_ATTACHMENT_BYTES, MAX_ATTACHMENTS, validAdminTokenConfigured } from "./_shared";
+import { getDatabase } from "./_database.js";
+import { attachmentTypes, isAdminAuthorized, jsonError, MAX_ATTACHMENT_BYTES, MAX_ATTACHMENTS, validAdminTokenConfigured } from "./_shared.js";
 
 type Attachment = { name: string; size: number; path: string };
 type RfqPayload = {

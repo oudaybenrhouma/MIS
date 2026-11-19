@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { get, issueSignedToken, presignUrl } from "@vercel/blob";
-import { attachmentTypes, isAdminAuthorized, jsonError, MAX_ATTACHMENT_BYTES, validAdminTokenConfigured } from "./_shared";
+import { attachmentTypes, isAdminAuthorized, jsonError, MAX_ATTACHMENT_BYTES, validAdminTokenConfigured } from "./_shared.js";
 
 const pathnamePattern = /^rfq-attachments\/[0-9a-f-]{36}\.[a-z0-9]{1,8}$/i;
 
