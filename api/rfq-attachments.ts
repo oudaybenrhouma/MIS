@@ -42,7 +42,15 @@ async function createUploadUrl(request: ApiRequest, response: ApiResponse): Prom
 
     response.setHeader("Cache-Control", "no-store");
     response.status(200).json({ pathname, clientToken, contentType });
-  } catch {
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "unknown error";
+    const safeMessage = message
+      .split(process.env.BLOB_READ_WRITE_TOKEN ?? "\u0000").join("[redacted]")
+      .split(process.env.VERCEL_OIDC_TOKEN ?? "\u0000").join("[redacted]")
+      .replace(/https?:\/\/\S+/g, "[url]")
+      .replace(/[A-Za-z0-9_-]{32,}/g, "[redacted]")
+      .slice(0, 240);
+    console.error(`[rfq-attachments] client token generation failed (${safeMessage})`);
     jsonError(response, "UPLOAD_URL_FAILED", 503);
   }
 }
