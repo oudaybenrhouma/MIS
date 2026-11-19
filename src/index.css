@@ -1,0 +1,315 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Archivo", "IBM Plex Sans Arabic", system-ui, sans-serif;
+  --font-display: "Archivo", "IBM Plex Sans Arabic", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", "IBM Plex Sans Arabic", ui-monospace, monospace;
+
+  --color-ink: #0b0b0c;
+  --color-graphite: #141517;
+  --color-steel: #2b2d31;
+  --color-mist: #8a8d93;
+  --color-line: #d8d5cd;
+  --color-paper: #f3f1ec;
+  --color-bone: #faf9f6;
+  --color-signal: #e1232b;
+  --color-signal-deep: #b3161d;
+}
+
+/* Arabic uses IBM Plex Sans Arabic as the lead face */
+html[lang="ar"] {
+  --font-sans: "IBM Plex Sans Arabic", "Archivo", system-ui, sans-serif;
+  --font-display: "IBM Plex Sans Arabic", "Archivo", system-ui, sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+html[lang="ar"] body {
+  line-height: 1.7;
+}
+
+::selection {
+  background: var(--color-signal);
+  color: #fff;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-signal);
+  outline-offset: 2px;
+}
+
+/* ---------- Typography ---------- */
+.display {
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 0.95;
+  font-stretch: 108%;
+}
+html[lang="ar"] .display {
+  letter-spacing: 0;
+  line-height: 1.3;
+  font-weight: 700;
+  font-stretch: 100%;
+}
+
+.label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+html[lang="ar"] .label {
+  font-family: var(--font-sans);
+  letter-spacing: 0;
+  text-transform: none;
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+.mono {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+.outline-num {
+  -webkit-text-stroke: 1.5px currentColor;
+  color: transparent;
+  font-family: "Archivo", sans-serif;
+  font-weight: 800;
+}
+
+/* ---------- Blueprint surfaces ---------- */
+.bp-grid-dark {
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.055) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.055) 1px, transparent 1px);
+  background-size: 56px 56px;
+}
+.bp-grid-light {
+  background-image:
+    linear-gradient(to right, rgba(11, 11, 12, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(11, 11, 12, 0.05) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+/* Ruler: 8px minor, 40px medium, 80px major ticks */
+.ruler-ticks {
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.85) 1px, transparent 1px),
+    linear-gradient(to right, rgba(255, 255, 255, 0.6) 1px, transparent 1px),
+    linear-gradient(to right, rgba(255, 255, 255, 0.35) 1px, transparent 1px);
+  background-size: 80px 28px, 40px 18px, 8px 9px;
+  background-repeat: repeat-x;
+  background-position: 0 0;
+}
+
+/* The red diagonal motif (mirrored in RTL) */
+.slash {
+  clip-path: polygon(34% 0, 100% 0, 100% 100%, 0 100%);
+}
+html[dir="rtl"] .slash {
+  transform: scaleX(-1);
+}
+
+/* ---------- Buttons ---------- */
+.btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  padding: 0.85rem 1.35rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+  line-height: 1.2;
+  overflow: hidden;
+  isolation: isolate;
+  border: 1.5px solid transparent;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 0.3s, border-color 0.3s, opacity 0.2s;
+}
+.btn::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -25%;
+  right: -25%;
+  z-index: -1;
+  transform: translateX(-115%) skewX(-22deg);
+  transition: transform 0.5s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+html[dir="rtl"] .btn::before {
+  transform: translateX(115%) skewX(22deg);
+}
+.btn:hover::before,
+.btn:focus-visible::before {
+  transform: translateX(0) skewX(-22deg);
+}
+html[dir="rtl"] .btn:hover::before,
+html[dir="rtl"] .btn:focus-visible::before {
+  transform: translateX(0) skewX(22deg);
+}
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.btn-red {
+  background: var(--color-signal);
+  color: #fff;
+}
+.btn-red::before {
+  background: var(--color-ink);
+}
+.btn-ink {
+  background: var(--color-ink);
+  color: #fff;
+}
+.btn-ink::before {
+  background: var(--color-signal);
+}
+.btn-line {
+  border-color: var(--color-ink);
+  color: var(--color-ink);
+}
+.btn-line::before {
+  background: var(--color-ink);
+}
+.btn-line:hover {
+  color: #fff;
+}
+.btn-line-light {
+  border-color: rgba(255, 255, 255, 0.45);
+  color: #fff;
+}
+.btn-line-light::before {
+  background: #fff;
+}
+.btn-line-light:hover {
+  color: var(--color-ink);
+  border-color: #fff;
+}
+.btn-sm {
+  padding: 0.55rem 0.9rem;
+  font-size: 0.8rem;
+}
+
+/* ---------- Inputs ---------- */
+.field {
+  font-size: 0.95rem;
+  width: 100%;
+  background: #fff;
+  border: 1.5px solid var(--color-line);
+  padding: 0.8rem 0.95rem;
+  font-size: 0.95rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  border-radius: 0;
+}
+.field:hover {
+  border-color: var(--color-mist);
+}
+.field:focus {
+  outline: none;
+  border-color: var(--color-ink);
+  box-shadow: 4px 4px 0 var(--color-signal);
+}
+.field[aria-invalid="true"] {
+  border-color: var(--color-signal);
+}
+html[dir="rtl"] .field:focus {
+  box-shadow: -4px 4px 0 var(--color-signal);
+}
+
+/* ---------- Motion ---------- */
+/* Starts partially visible so content never disappears if the observer is skipped (print, static capture). */
+.reveal {
+  opacity: 0.35;
+  transform: translateY(22px);
+  transition: opacity 0.8s cubic-bezier(0.2, 0.7, 0.2, 1) var(--d, 0ms),
+    transform 0.8s cubic-bezier(0.2, 0.7, 0.2, 1) var(--d, 0ms);
+}
+.reveal.in {
+  opacity: 1;
+  transform: none;
+}
+
+@keyframes marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+.marquee-track {
+  animation: marquee 38s linear infinite;
+  width: max-content;
+}
+.marquee:hover .marquee-track {
+  animation-play-state: paused;
+}
+
+@keyframes bump {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.5); }
+  100% { transform: scale(1); }
+}
+.bump {
+  animation: bump 0.4s ease;
+}
+
+@keyframes slide-in {
+  from { opacity: 0; transform: translateY(14px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+.toast-in {
+  animation: slide-in 0.35s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+@keyframes sweep {
+  0%, 100% { left: 18%; }
+  50% { left: 62%; }
+}
+.ruler-idle {
+  animation: sweep 9s ease-in-out infinite;
+}
+
+@keyframes draw {
+  from { stroke-dashoffset: 60; }
+  to { stroke-dashoffset: 0; }
+}
+.draw-check {
+  stroke-dasharray: 60;
+  animation: draw 0.9s 0.2s ease forwards;
+  stroke-dashoffset: 60;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+.spin { animation: spin 0.8s linear infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .reveal { opacity: 1; transform: none; transition: none; }
+  .marquee-track, .ruler-idle { animation: none; }
+  .btn::before { transition: none; }
+}
+
+/* Scrollbars for filter lists */
+.thin-scroll::-webkit-scrollbar { width: 6px; }
+.thin-scroll::-webkit-scrollbar-thumb { background: var(--color-line); }
+
+@media print {
+  header, footer, .no-print { display: none !important; }
+  body { background: #fff; }
+}
