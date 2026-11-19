@@ -5,7 +5,7 @@ import type { RfqPayload } from "@/services/rfq";
 type Submission = {
   reference: string;
   submitted_at: string;
-  status: string;
+  status: "new" | "reviewing" | "quoted" | "closed";
   payload: RfqPayload;
 };
 
@@ -20,6 +20,7 @@ export default function Admin() {
   const [error, setError] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [updatingStatus, setUpdatingStatus] = useState(false);
 
   async function load(auth = token, before?: string, append = false) {
     if (!auth) return;
@@ -67,6 +68,22 @@ export default function Admin() {
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Attachment download failed."); }
   }
 
+  async function updateStatus(row: Submission, status: Submission["status"]) {
+    if (row.status === status) return;
+    setUpdatingStatus(true); setError("");
+    try {
+      const response = await fetch("/api/rfqs", {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ reference: row.reference, status }),
+      });
+      if (!response.ok) throw new Error(response.status === 401 ? "Admin key expired. Sign in again." : "Could not update request status.");
+      const updated = await response.json() as { status: Submission["status"] };
+      setSubmissions((current) => current.map((item) => item.reference === row.reference ? { ...item, status: updated.status } : item));
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not update request status."); }
+    finally { setUpdatingStatus(false); }
+  }
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return q ? submissions.filter((row) => [row.reference, row.payload.contact.name, row.payload.contact.email, row.payload.company.name].some((value) => value.toLowerCase().includes(q))) : submissions;
@@ -93,7 +110,7 @@ export default function Admin() {
         {error && <p role="alert" className="mb-5 border-l-2 border-signal bg-red-50 p-3 text-sm text-signal-deep">{error}</p>}
         {loading && submissions.length === 0 ? <p className="border border-line bg-white p-8 text-sm">Loading quote requests…</p> : <div className="grid gap-5 lg:grid-cols-[minmax(280px,0.85fr)_minmax(0,1.5fr)]">
           <section aria-label="Requests" className="space-y-2">{filtered.map((row) => <button key={row.reference} onClick={() => setSelected(row.reference)} className={`w-full border p-4 text-left transition ${active?.reference === row.reference ? "border-ink bg-white shadow-sm" : "border-line bg-bone hover:border-mist"}`}><div className="mb-2 flex items-center justify-between gap-3"><span className="mono text-xs font-semibold">{row.reference}</span><span className="label text-mist">{row.status}</span></div><p className="font-semibold">{row.payload.contact.name}</p><p className="mt-1 truncate text-sm text-steel">{row.payload.company.name} · {row.payload.contact.email}</p><p className="label mt-3 text-mist">{new Date(row.submitted_at).toLocaleString()}</p></button>)}{!filtered.length && <div className="border border-line bg-white p-6 text-sm text-mist">{submissions.length ? "No requests match your search." : "No quote requests have been submitted yet."}</div>}{nextBefore && <button className="btn btn-line w-full" onClick={() => void load(token, nextBefore, true)} disabled={loading}>{loading ? "Loading…" : "Load older requests"}</button>}</section>
-          {active ? <article className="border border-line bg-white p-5 md:p-8"><div className="flex flex-wrap items-start justify-between gap-3 border-b border-line pb-5"><div><p className="label mb-2 text-signal">{active.status}</p><h2 className="mono text-xl font-bold">{active.reference}</h2><p className="mt-2 text-sm text-mist">Received {new Date(active.submitted_at).toLocaleString()}</p></div><span className="bg-paper px-3 py-2 text-sm font-semibold">{active.payload.delivery.currency} · {active.payload.delivery.urgency}</span></div>
+          {active ? <article className="border border-line bg-white p-5 md:p-8"><div className="flex flex-wrap items-start justify-between gap-3 border-b border-line pb-5"><div><p className="label mb-2 text-signal">{active.status}</p><h2 className="mono text-xl font-bold">{active.reference}</h2><p className="mt-2 text-sm text-mist">Received {new Date(active.submitted_at).toLocaleString()}</p></div><div className="flex flex-wrap items-center gap-2"><label className="sr-only" htmlFor="rfq-status">Update request status</label><select id="rfq-status" className="field min-w-36 py-2 text-sm" value={active.status} onChange={(event) => void updateStatus(active, event.target.value as Submission["status"])} disabled={updatingStatus}><option value="new">New</option><option value="reviewing">Reviewing</option><option value="quoted">Quoted</option><option value="closed">Closed</option></select><span className="bg-paper px-3 py-2 text-sm font-semibold">{active.payload.delivery.currency} · {active.payload.delivery.urgency}</span></div></div>
             <div className="grid gap-6 py-6 sm:grid-cols-2"><Info title="Contact" lines={[active.payload.contact.name, active.payload.contact.jobTitle, active.payload.contact.email, active.payload.contact.phone, active.payload.contact.whatsapp ? "WhatsApp available" : ""]}/><Info title="Company" lines={[active.payload.company.name, active.payload.company.sector, active.payload.company.registry]}/><Info title="Delivery" lines={[active.payload.delivery.city, active.payload.delivery.address, active.payload.delivery.method, active.payload.delivery.requiredBy ? `Required by ${active.payload.delivery.requiredBy}` : ""]}/></div>
             <section className="border-t border-line py-5"><h3 className="label mb-3">Requested items · {active.payload.items.length}</h3>{active.payload.items.length ? <div className="divide-y divide-line">{active.payload.items.map((item, index) => <div key={`${item.productId}-${index}`} className="flex flex-wrap justify-between gap-2 py-3 text-sm"><div><p className="font-semibold">{item.name}</p><p className="text-mist">{item.brand} · {item.ref}{item.note ? ` · ${item.note}` : ""}</p></div><span className="mono">Qty {item.qty}</span></div>)}</div> : <p className="text-sm text-mist">No catalog items listed.</p>}{active.payload.requirements && <p className="mt-4 whitespace-pre-wrap border-l-2 border-signal bg-bone p-4 text-sm leading-6">{active.payload.requirements}</p>}</section>
             {!!active.payload.attachments.length && <section className="border-t border-line pt-5"><h3 className="label mb-3">Attachments · {active.payload.attachments.length}</h3><div className="flex flex-wrap gap-2">{active.payload.attachments.map((file) => <button key={file.path} onClick={() => void download(file.path, file.name)} className="btn btn-line btn-sm"><Download size={15}/>{file.name} ({Math.ceil(file.size / 1024)} KB)</button>)}</div></section>}

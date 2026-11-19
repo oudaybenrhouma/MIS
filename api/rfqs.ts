@@ -26,7 +26,33 @@ const currencies = new Set(["LYD", "USD", "EUR"]);
 export default async function handler(request: ApiRequest, response: ApiResponse): Promise<void> {
   if (request.method === "GET") return listSubmissions(request, response);
   if (request.method === "POST") return createSubmission(request, response);
+  if (request.method === "PATCH") return updateSubmissionStatus(request, response);
   jsonError(response, "METHOD_NOT_ALLOWED", 405);
+}
+
+async function updateSubmissionStatus(request: ApiRequest, response: ApiResponse): Promise<void> {
+  if (!validAdminTokenConfigured()) return jsonError(response, "ADMIN_NOT_CONFIGURED", 503);
+  if (!isAdminAuthorized(request)) return jsonError(response, "UNAUTHORIZED", 401);
+
+  try {
+    const body = typeof request.body === "string" ? JSON.parse(request.body) as unknown : request.body;
+    if (!isRecord(body) || !text(body.reference, 1, 80) || !["new", "reviewing", "quoted", "closed"].includes(String(body.status))) {
+      return jsonError(response, "INVALID_STATUS_UPDATE", 400);
+    }
+    const sql = getDatabase();
+    const rows = await sql`
+      UPDATE mis_rfq_submissions
+      SET status = ${body.status as string}
+      WHERE reference = ${body.reference}
+      RETURNING reference, status
+    `;
+    if (!rows.length) return jsonError(response, "SUBMISSION_NOT_FOUND", 404);
+    response.setHeader("Cache-Control", "no-store");
+    response.status(200).json(rows[0]);
+  } catch (error) {
+    if (error instanceof SyntaxError) return jsonError(response, "INVALID_JSON", 400);
+    jsonError(response, "STATUS_UPDATE_FAILED", 503);
+  }
 }
 
 async function createSubmission(request: ApiRequest, response: ApiResponse): Promise<void> {
