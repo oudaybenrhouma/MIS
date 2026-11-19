@@ -29,7 +29,9 @@ async function createUploadUrl(request: ApiRequest, response: ApiResponse): Prom
 
     const pathname = `rfq-attachments/${randomUUID()}.${extension}`;
     const validUntil = Date.now() + 5 * 60 * 1000;
+    const blobAuth = process.env.BLOB_READ_WRITE_TOKEN ? { token: process.env.BLOB_READ_WRITE_TOKEN } : {};
     const signedToken = await issueSignedToken({
+      ...blobAuth,
       pathname,
       operations: ["put"],
       allowedContentTypes: [contentType],
@@ -37,6 +39,7 @@ async function createUploadUrl(request: ApiRequest, response: ApiResponse): Prom
       validUntil,
     });
     const { presignedUrl } = await presignUrl(signedToken, {
+      ...blobAuth,
       operation: "put",
       pathname,
       access: "private",
