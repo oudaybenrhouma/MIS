@@ -1,4 +1,5 @@
 import { siteConfig } from "@/config/site";
+import { put } from "@vercel/blob/client";
 
 export interface RfqAttachment {
   name: string;
@@ -47,7 +48,7 @@ export class RfqServiceError extends Error {
 
 interface UploadTicket {
   pathname: string;
-  presignedUrl: string;
+  clientToken: string;
   contentType: string;
 }
 
@@ -71,13 +72,12 @@ export async function submitRfq(payload: RfqPayload, files: File[]): Promise<Rfq
     }
 
     try {
-      const response = await fetch(ticket.presignedUrl, {
-        method: "PUT",
-        headers: { "Content-Type": ticket.contentType },
-        body: file,
+      const blob = await put(ticket.pathname, file, {
+        token: ticket.clientToken,
+        access: "private",
+        contentType: ticket.contentType,
       });
-      if (!response.ok) throw new RfqServiceError("upload_failed");
-      attachments.push({ name: file.name, size: file.size, path: ticket.pathname });
+      attachments.push({ name: file.name, size: file.size, path: blob.pathname });
     } catch (error) {
       if (error instanceof RfqServiceError) throw error;
       throw new RfqServiceError("upload_failed");

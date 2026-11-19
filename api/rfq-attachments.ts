@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { Readable } from "node:stream";
-import { get, issueSignedToken, presignUrl } from "@vercel/blob";
+import { get } from "@vercel/blob";
+import { generateClientTokenFromReadWriteToken } from "@vercel/blob/client";
 import { attachmentTypes, isAdminAuthorized, jsonError, MAX_ATTACHMENT_BYTES, validAdminTokenConfigured, type ApiRequest, type ApiResponse } from "./_shared.js";
 
 const pathnamePattern = /^rfq-attachments\/[0-9a-f-]{36}\.[a-z0-9]{1,8}$/i;
@@ -12,11 +13,10 @@ export default async function handler(request: ApiRequest, response: ApiResponse
 }
 
 async function createUploadUrl(request: ApiRequest, response: ApiResponse): Promise<void> {
-  if (!process.env.BLOB_STORE_ID && !process.env.BLOB_READ_WRITE_TOKEN) {
+  if (!process.env.BLOB_READ_WRITE_TOKEN) {
     return jsonError(response, "BLOB_NOT_CONFIGURED", 503);
   }
 
-  let signingStep = "issueSignedToken";
   try {
     const body = request.body as { name?: unknown; size?: unknown } | undefined;
     if (!body || typeof body.name !== "string" || typeof body.size !== "number") return jsonError(response, "INVALID_FILE", 400);
@@ -30,21 +30,9 @@ async function createUploadUrl(request: ApiRequest, response: ApiResponse): Prom
 
     const pathname = `rfq-attachments/${randomUUID()}.${extension}`;
     const validUntil = Date.now() + 5 * 60 * 1000;
-    const blobAuth = process.env.BLOB_READ_WRITE_TOKEN ? { token: process.env.BLOB_READ_WRITE_TOKEN } : {};
-    const signedToken = await issueSignedToken({
-      ...blobAuth,
+    const clientToken = await generateClientTokenFromReadWriteToken({
+      token: process.env.BLOB_READ_WRITE_TOKEN,
       pathname,
-      operations: ["put"],
-      allowedContentTypes: [contentType],
-      maximumSizeInBytes: Math.min(body.size, MAX_ATTACHMENT_BYTES),
-      validUntil,
-    });
-    signingStep = "presignUrl";
-    const { presignedUrl } = await presignUrl(signedToken, {
-      ...blobAuth,
-      operation: "put",
-      pathname,
-      access: "private",
       allowedContentTypes: [contentType],
       maximumSizeInBytes: Math.min(body.size, MAX_ATTACHMENT_BYTES),
       validUntil,
@@ -53,19 +41,8 @@ async function createUploadUrl(request: ApiRequest, response: ApiResponse): Prom
     });
 
     response.setHeader("Cache-Control", "no-store");
-    response.status(200).json({ pathname, presignedUrl, contentType });
-  } catch (error) {
-    const rawMessage = error instanceof Error ? error.message : "unknown error";
-    const safeMessage = rawMessage
-      .split(process.env.BLOB_READ_WRITE_TOKEN ?? "\u0000").join("[redacted]")
-      .split(process.env.VERCEL_OIDC_TOKEN ?? "\u0000").join("[redacted]")
-      .replace(/https?:\/\/\S+/g, "[url]")
-      .replace(/[A-Za-z0-9_-]{32,}/g, "[redacted]")
-      .slice(0, 240);
-    const detail = error instanceof Error
-      ? `${error.name}; code=${"code" in error ? String(error.code) : "unknown"}; status=${"statusCode" in error ? String(error.statusCode) : "unknown"}; message=${safeMessage}`
-      : "unknown error";
-    console.error(`[rfq-attachments] ${signingStep} failed (${detail})`);
+    response.status(200).json({ pathname, clientToken, contentType });
+  } catch {
     jsonError(response, "UPLOAD_URL_FAILED", 503);
   }
 }
