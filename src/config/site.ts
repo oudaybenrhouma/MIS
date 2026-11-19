@@ -46,7 +46,7 @@ export const siteConfig = {
     maxAttachments: 5,
     maxAttachmentMB: 10,
     acceptedExtensions: [".pdf", ".doc", ".docx", ".xls", ".xlsx", ".csv", ".dwg", ".dxf", ".step", ".stp", ".png", ".jpg", ".jpeg", ".zip"],
-    /** Swap for a real endpoint when a backend exists (see services/rfq.ts). */
+    /** Override the built-in Vercel API endpoint only when needed. */
     endpoint: "",
   },
 };

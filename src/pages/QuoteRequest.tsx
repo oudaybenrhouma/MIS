@@ -7,7 +7,7 @@ import { siteConfig } from "@/config/site";
 import { libyanCities } from "@/data/cities";
 import { getBrand } from "@/data/brands";
 import { getProduct } from "@/services/catalog";
-import { normaliseLibyanPhone, submitRfq, type RfqPayload } from "@/services/rfq";
+import { normaliseLibyanPhone, RfqServiceError, submitRfq, type RfqPayload } from "@/services/rfq";
 import { PageHeader } from "@/components/PageHeader";
 import { QuantityStepper } from "@/components/QuantityStepper";
 import { Arrow, usePageTitle } from "@/components/common";
@@ -219,7 +219,7 @@ export default function QuoteRequest() {
           ? [{ productId: p.id, ref: p.ref, name: tr(p.name), brand: getBrand(p.brand)?.name ?? "", qty: i.qty, note: i.note }]
           : [];
       }),
-      attachments: files.map((f) => ({ name: f.name, size: f.size })),
+      attachments: [],
       lang,
     };
 
@@ -228,8 +228,8 @@ export default function QuoteRequest() {
       const res = await submitRfq(payload, files);
       quote.clear();
       navigate(`/quote/confirmation/${res.reference}`, { replace: true });
-    } catch {
-      setSubmitError(t("rfq.err.failed"));
+    } catch (error) {
+      setSubmitError(error instanceof RfqServiceError && error.code === "service_unavailable" ? t("rfq.err.backend") : t("rfq.err.failed"));
       setBusy(false);
     }
   };

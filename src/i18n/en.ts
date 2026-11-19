@@ -326,6 +326,7 @@ export const en = {
       fileCount: "You can attach up to {n} files.",
       summary: "Please review the highlighted fields.",
       failed: "We could not send your request. Please try again.",
+      backend: "Quote requests are not connected yet. Please try again later.",
     },
     yourItems: "Items in this request",
     noItems: "No products selected.",

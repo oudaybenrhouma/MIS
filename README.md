@@ -23,7 +23,11 @@ The importer matches product references to the available source photos; the opti
 ## Business details and RFQ backend
 
 - `src/config/site.ts` holds phone, WhatsApp, email, address, hours, map, and attachment settings. Empty contact fields show placeholders.
-- `src/services/rfq.ts` currently stores requests in the browser. Connect it to a server endpoint before using it as a production RFQ inbox.
+- Quote requests are accepted by Vercel Functions in `api/`, stored in Neon Postgres, and their attachments go to a private Vercel Blob store. Confirmation details stay in the visitor's current browser session.
+- Create a Neon database and a **private** Blob store from the Vercel project's Storage tab. Set `DATABASE_URL` and `RFQ_ADMIN_TOKEN` for the project; link the Blob store so Vercel provides `BLOB_READ_WRITE_TOKEN` (and `BLOB_STORE_ID` where required). Set all variables in Production, Preview, and Development as needed.
+- Run `database/schema.sql` in the Neon SQL Editor before accepting quote requests. The API returns HTTP 503 with a clear form message until database and Blob credentials are connected.
+- For local development, use `vercel env pull .env.local` and `vercel dev` so the API functions and storage bindings are available. `npm run dev` serves only the Vite frontend.
+- Admin-only API: `GET /api/rfqs` lists recent requests, and `GET /api/rfq-attachments?path=...` downloads an attachment. Both require `Authorization: Bearer <RFQ_ADMIN_TOKEN>`; keep this token private.
 
 ## Development
 

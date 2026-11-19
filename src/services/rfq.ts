@@ -1,19 +1,16 @@
-/**
- * RFQ submission service (mock).
- * ---------------------------------------------------------------
- * Today: generates a reference and stores the submission in localStorage
- * so the full flow (form → confirmation) can be tested without a backend.
- *
- * Later: POST `RfqPayload` (as multipart/form-data with the files) to
- * `siteConfig.rfq.endpoint` and return the reference issued by the server.
- */
 import { siteConfig } from "@/config/site";
+
+export interface RfqAttachment {
+  name: string;
+  size: number;
+  path: string;
+}
 
 export interface RfqPayload {
   contact: {
     name: string;
     jobTitle: string;
-    phone: string; // normalised, +218…
+    phone: string;
     email: string;
     whatsapp: boolean;
   };
@@ -32,7 +29,7 @@ export interface RfqPayload {
   };
   requirements: string;
   items: { productId: string; ref: string; name: string; brand: string; qty: number; note: string }[];
-  attachments: { name: string; size: number }[];
+  attachments: RfqAttachment[];
   lang: "ar" | "en";
 }
 
@@ -41,41 +38,80 @@ export interface RfqSubmission extends RfqPayload {
   submittedAt: string;
 }
 
-const KEY = "mis.rfq.submissions.v1";
-
-function makeReference(): string {
-  const d = new Date();
-  const yy = String(d.getFullYear()).slice(2);
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  const alphabet = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
-  let suffix = "";
-  for (let i = 0; i < 4; i++) suffix += alphabet[Math.floor(Math.random() * alphabet.length)];
-  return `MIS-RFQ-${yy}${mm}${dd}-${suffix}`;
-}
-
-function readAll(): RfqSubmission[] {
-  try {
-    return JSON.parse(localStorage.getItem(KEY) ?? "[]");
-  } catch {
-    return [];
+export class RfqServiceError extends Error {
+  constructor(readonly code: "service_unavailable" | "upload_failed" | "submission_failed") {
+    super(code);
+    this.name = "RfqServiceError";
   }
 }
 
-export async function submitRfq(payload: RfqPayload, _files: File[]): Promise<RfqSubmission> {
-  void _files; // files would be uploaded to siteConfig.rfq.endpoint
-  void siteConfig.rfq.endpoint;
-  await new Promise((r) => setTimeout(r, 1300)); // simulate network latency
-  const submission: RfqSubmission = { ...payload, reference: makeReference(), submittedAt: new Date().toISOString() };
-  try {
-    localStorage.setItem(KEY, JSON.stringify([submission, ...readAll()].slice(0, 20)));
-  } catch {
-    /* ignore */
-  }
-  return submission;
+interface UploadTicket {
+  pathname: string;
+  presignedUrl: string;
+  contentType: string;
 }
 
-export const getSubmission = (reference: string) => readAll().find((s) => s.reference === reference) ?? null;
+const CURRENT_SUBMISSION_KEY = "mis.rfq.current.v1";
+
+export async function submitRfq(payload: RfqPayload, files: File[]): Promise<RfqSubmission> {
+  const attachments: RfqAttachment[] = [];
+  for (const file of files) {
+    let ticket: UploadTicket;
+    try {
+      const response = await fetch("/api/rfq-attachments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: file.name, size: file.size }),
+      });
+      if (!response.ok) throw new RfqServiceError(response.status === 503 ? "service_unavailable" : "upload_failed");
+      ticket = (await response.json()) as UploadTicket;
+    } catch (error) {
+      if (error instanceof RfqServiceError) throw error;
+      throw new RfqServiceError("service_unavailable");
+    }
+
+    try {
+      const response = await fetch(ticket.presignedUrl, {
+        method: "PUT",
+        headers: { "Content-Type": ticket.contentType },
+        body: file,
+      });
+      if (!response.ok) throw new RfqServiceError("upload_failed");
+      attachments.push({ name: file.name, size: file.size, path: ticket.pathname });
+    } catch (error) {
+      if (error instanceof RfqServiceError) throw error;
+      throw new RfqServiceError("upload_failed");
+    }
+  }
+
+  try {
+    const response = await fetch(siteConfig.rfq.endpoint || "/api/rfqs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...payload, attachments }),
+    });
+    if (!response.ok) throw new RfqServiceError(response.status === 503 ? "service_unavailable" : "submission_failed");
+    const submission = (await response.json()) as RfqSubmission;
+    try {
+      sessionStorage.setItem(CURRENT_SUBMISSION_KEY, JSON.stringify(submission));
+    } catch {
+      // The server has stored the request; confirmation can still use the response in this navigation.
+    }
+    return submission;
+  } catch (error) {
+    if (error instanceof RfqServiceError) throw error;
+    throw new RfqServiceError("service_unavailable");
+  }
+}
+
+export const getSubmission = (reference: string): RfqSubmission | null => {
+  try {
+    const current = JSON.parse(sessionStorage.getItem(CURRENT_SUBMISSION_KEY) ?? "null") as RfqSubmission | null;
+    return current?.reference === reference ? current : null;
+  } catch {
+    return null;
+  }
+};
 
 /** Libyan number normalisation: accepts 91 234 5678, 091…, +218 91…, 00218… */
 export function normaliseLibyanPhone(input: string): string | null {
@@ -86,7 +122,7 @@ export function normaliseLibyanPhone(input: string): string | null {
   else if (d.startsWith("218") && d.length >= 11) d = d.slice(3);
   if (d.startsWith("0")) d = d.slice(1);
   if (!/^\d+$/.test(d)) return null;
-  const mobile = /^9\d{8}$/.test(d); // 9X XXX XXXX
+  const mobile = /^9\d{8}$/.test(d);
   const landline = /^[2-8]\d{7,8}$/.test(d);
   if (!mobile && !landline) return null;
   return `+218${d}`;
