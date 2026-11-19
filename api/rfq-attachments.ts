@@ -13,6 +13,7 @@ export default async function handler(request: ApiRequest, response: ApiResponse
 }
 
 async function createUploadUrl(request: ApiRequest, response: ApiResponse): Promise<void> {
+  console.info(`[rfq-attachments] POST start; body=${typeof request.body}; isArray=${Array.isArray(request.body)}`);
   if (!process.env.BLOB_READ_WRITE_TOKEN) {
     return jsonError(response, "BLOB_NOT_CONFIGURED", 503);
   }
@@ -26,6 +27,7 @@ async function createUploadUrl(request: ApiRequest, response: ApiResponse): Prom
   if (!Number.isInteger(body.size) || body.size < 1 || body.size > MAX_ATTACHMENT_BYTES) {
     return jsonError(response, "FILE_SIZE_NOT_ALLOWED", 400);
   }
+  console.info(`[rfq-attachments] payload valid; extension=${extension}; size=${body.size}`);
 
   const pathname = `rfq-attachments/${randomUUID()}.${extension}`;
   const validUntil = Date.now() + 5 * 60 * 1000;
@@ -40,6 +42,7 @@ async function createUploadUrl(request: ApiRequest, response: ApiResponse): Prom
       addRandomSuffix: false,
       allowOverwrite: false,
     });
+    console.info(`[rfq-attachments] client token generated; length=${clientToken.length}`);
   } catch (error) {
     const message = error instanceof Error ? error.message : "unknown error";
     const safeMessage = message
@@ -55,6 +58,7 @@ async function createUploadUrl(request: ApiRequest, response: ApiResponse): Prom
 
   response.setHeader("Cache-Control", "no-store");
   response.status(200).json({ pathname, clientToken, contentType });
+  console.info("[rfq-attachments] ticket response sent");
 }
 
 async function downloadAttachment(request: ApiRequest, response: ApiResponse): Promise<void> {
