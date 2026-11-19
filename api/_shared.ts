@@ -1,4 +1,11 @@
 import { timingSafeEqual } from "node:crypto";
+import type { IncomingMessage, ServerResponse } from "node:http";
+
+export type ApiRequest = IncomingMessage & { body?: unknown };
+export type ApiResponse = ServerResponse & {
+  status(code: number): ApiResponse;
+  json(body: unknown): ApiResponse;
+};
 
 export const MAX_ATTACHMENTS = 5;
 export const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
@@ -20,14 +27,16 @@ export const attachmentTypes: Record<string, string> = {
   zip: "application/zip",
 };
 
-export function jsonError(message: string, status: number) {
-  return Response.json({ error: message }, { status, headers: { "Cache-Control": "no-store" } });
+export function jsonError(response: ApiResponse, message: string, status: number): void {
+  response.setHeader("Cache-Control", "no-store");
+  response.status(status).json({ error: message });
 }
 
-export function isAdminAuthorized(request: Request): boolean {
+export function isAdminAuthorized(request: ApiRequest): boolean {
   const expected = process.env.RFQ_ADMIN_TOKEN;
-  const authorization = request.headers.get("authorization") ?? "";
-  const provided = authorization.startsWith("Bearer ") ? authorization.slice(7) : "";
+  const authorization = request.headers.authorization;
+  const authorizationHeader = typeof authorization === "string" ? authorization : "";
+  const provided = authorizationHeader.startsWith("Bearer ") ? authorizationHeader.slice(7) : "";
   if (!expected || !provided) return false;
   const expectedBytes = Buffer.from(expected);
   const providedBytes = Buffer.from(provided);

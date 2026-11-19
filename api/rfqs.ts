@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { head } from "@vercel/blob";
 import { getDatabase } from "./_database.js";
-import { attachmentTypes, isAdminAuthorized, jsonError, MAX_ATTACHMENT_BYTES, MAX_ATTACHMENTS, validAdminTokenConfigured } from "./_shared.js";
+import { attachmentTypes, isAdminAuthorized, jsonError, MAX_ATTACHMENT_BYTES, MAX_ATTACHMENTS, validAdminTokenConfigured, type ApiRequest, type ApiResponse } from "./_shared.js";
 
 type Attachment = { name: string; size: number; path: string };
 type RfqPayload = {
@@ -23,23 +23,25 @@ const methods = new Set(["site", "pickup", "tbd"]);
 const urgencies = new Set(["standard", "urgent", "project"]);
 const currencies = new Set(["LYD", "USD", "EUR"]);
 
-export default async function handler(request: Request): Promise<Response> {
-  if (request.method === "GET") return listSubmissions(request);
-  if (request.method === "POST") return createSubmission(request);
-  return jsonError("METHOD_NOT_ALLOWED", 405);
+export default async function handler(request: ApiRequest, response: ApiResponse): Promise<void> {
+  if (request.method === "GET") return listSubmissions(request, response);
+  if (request.method === "POST") return createSubmission(request, response);
+  jsonError(response, "METHOD_NOT_ALLOWED", 405);
 }
 
-async function createSubmission(request: Request): Promise<Response> {
-  if (!process.env.DATABASE_URL) return jsonError("DATABASE_NOT_CONFIGURED", 503);
-  const origin = request.headers.get("origin");
-  if (origin && new URL(origin).host !== new URL(request.url).host) return jsonError("ORIGIN_NOT_ALLOWED", 403);
+async function createSubmission(request: ApiRequest, response: ApiResponse): Promise<void> {
+  if (!process.env.DATABASE_URL) return jsonError(response, "DATABASE_NOT_CONFIGURED", 503);
+  const origin = request.headers.origin;
+  const requestHost = request.headers.host;
+  if (typeof origin === "string" && typeof requestHost === "string" && new URL(origin).host !== requestHost) {
+    return jsonError(response, "ORIGIN_NOT_ALLOWED", 403);
+  }
 
   try {
-    const raw = await request.text();
-    if (raw.length > 256 * 1024) return jsonError("REQUEST_TOO_LARGE", 413);
-    const payload = JSON.parse(raw) as unknown;
+    const payload = typeof request.body === "string" ? JSON.parse(request.body) as unknown : request.body;
+    if (!payload || JSON.stringify(payload).length > 256 * 1024) return jsonError(response, "REQUEST_TOO_LARGE", 413);
     const validationError = validatePayload(payload);
-    if (validationError) return jsonError(validationError, 400);
+    if (validationError) return jsonError(response, validationError, 400);
     const rfq = payload as RfqPayload;
 
     const verifiedAttachments = await Promise.all(rfq.attachments.map(async (attachment) => {
@@ -47,7 +49,7 @@ async function createSubmission(request: Request): Promise<Response> {
       const extension = attachment.name.split(".").pop()?.toLowerCase() ?? "";
       return metadata.size === attachment.size && metadata.contentType === attachmentTypes[extension];
     }));
-    if (verifiedAttachments.some((valid) => !valid)) return jsonError("ATTACHMENT_VERIFICATION_FAILED", 400);
+    if (verifiedAttachments.some((valid) => !valid)) return jsonError(response, "ATTACHMENT_VERIFICATION_FAILED", 400);
 
     const now = new Date();
     const date = `${String(now.getFullYear()).slice(-2)}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}`;
@@ -59,36 +61,32 @@ async function createSubmission(request: Request): Promise<Response> {
       RETURNING submitted_at
     `;
     const submittedAt = new Date(row.submitted_at).toISOString();
-    return Response.json(
-      { ...rfq, reference, submittedAt },
-      { status: 201, headers: { "Cache-Control": "no-store" } },
-    );
+    response.setHeader("Cache-Control", "no-store");
+    response.status(201).json({ ...rfq, reference, submittedAt });
   } catch (error) {
-    if (error instanceof Error && error.message === "DATABASE_NOT_CONFIGURED") return jsonError("DATABASE_NOT_CONFIGURED", 503);
-    if (error instanceof SyntaxError) return jsonError("INVALID_JSON", 400);
-    return jsonError("SUBMISSION_FAILED", 503);
+    if (error instanceof Error && error.message === "DATABASE_NOT_CONFIGURED") return jsonError(response, "DATABASE_NOT_CONFIGURED", 503);
+    if (error instanceof SyntaxError) return jsonError(response, "INVALID_JSON", 400);
+    jsonError(response, "SUBMISSION_FAILED", 503);
   }
 }
 
-async function listSubmissions(request: Request): Promise<Response> {
-  if (!validAdminTokenConfigured()) return jsonError("ADMIN_NOT_CONFIGURED", 503);
-  if (!isAdminAuthorized(request)) return jsonError("UNAUTHORIZED", 401);
+async function listSubmissions(request: ApiRequest, response: ApiResponse): Promise<void> {
+  if (!validAdminTokenConfigured()) return jsonError(response, "ADMIN_NOT_CONFIGURED", 503);
+  if (!isAdminAuthorized(request)) return jsonError(response, "UNAUTHORIZED", 401);
   try {
     const sql = getDatabase();
-    const url = new URL(request.url);
+    const url = new URL(request.url ?? "/", `https://${request.headers.host ?? "localhost"}`);
     const limit = Math.min(100, Math.max(1, Number.parseInt(url.searchParams.get("limit") ?? "50", 10) || 50));
     const beforeValue = url.searchParams.get("before");
     const before = beforeValue ? new Date(beforeValue) : null;
-    if (before && !Number.isFinite(before.getTime())) return jsonError("INVALID_CURSOR", 400);
+    if (before && !Number.isFinite(before.getTime())) return jsonError(response, "INVALID_CURSOR", 400);
     const rows = before
       ? await sql`SELECT reference, submitted_at, status, payload FROM mis_rfq_submissions WHERE submitted_at < ${before.toISOString()} ORDER BY submitted_at DESC LIMIT ${limit}`
       : await sql`SELECT reference, submitted_at, status, payload FROM mis_rfq_submissions ORDER BY submitted_at DESC LIMIT ${limit}`;
-    return Response.json(
-      { submissions: rows, nextBefore: rows.length === limit ? rows[rows.length - 1].submitted_at : null },
-      { headers: { "Cache-Control": "no-store" } },
-    );
+    response.setHeader("Cache-Control", "no-store");
+    response.status(200).json({ submissions: rows, nextBefore: rows.length === limit ? rows[rows.length - 1].submitted_at : null });
   } catch {
-    return jsonError("SUBMISSIONS_UNAVAILABLE", 503);
+    jsonError(response, "SUBMISSIONS_UNAVAILABLE", 503);
   }
 }
 
