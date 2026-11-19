@@ -233,6 +233,7 @@ export const en = {
     rowRef: "MIS reference",
     rowStatus: "Catalogue status",
     rowStatusV: "Placeholder entry",
+    rowStatusR: "Supplier catalogue entry",
     waText: "Hello MIS, I would like a quotation for: {name} ({ref}).",
   },
   quote: {

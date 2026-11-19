@@ -1,31 +1,36 @@
-# MIS — Master Industrial Supplies (RFQ catalogue)
+# MIS — Master Industrial Supplies
 
-React + Vite + Tailwind. Arabic (default, RTL) and English (LTR). A quotation platform — no checkout, no prices, no stock.
+React, TypeScript, Vite and Tailwind website for the MIS product catalogue and request-for-quotation flow. Arabic is the default language; English is also available.
 
-## 1. Add the official logo
-Drop the **unmodified** file at `src/assets/brand/mis-logo.png` (`.svg`, `.jpg`, `.webp` also work).
-It is used as-is everywhere (height-constrained only). Until then a neutral dashed placeholder is shown.
+## Catalogue data
 
-## 2. Fill in business details
-`src/config/site.ts` — phone, WhatsApp (digits, e.g. `218910000000`), email, address, hours, map embed URL,
-attachment limits. Empty values render as clearly marked placeholders.
+The catalogue includes 9,238 product records imported from the supplier database provided to MIS: HAZET, VIGOR, Wera, WSP, ECS and RENNSTEIG. The Brands page also lists Djois | Tarifold and NOVAP, which have product images in the supplied folder but no structured product list.
 
-## 3. Connect the real catalogue
-- `src/data/brands.ts`, `categories.ts` — add entries; menus, filters, counts and pages follow automatically.
-- `src/data/products.ts` — replace the generated placeholder rows (same `Product` shape, set `placeholder: false`,
-  add `image` URLs and `specs`).
-- `src/services/catalog.ts` — the only module the UI uses to read products. Swap its bodies for API calls.
+Supplier prices and stock levels were not present in the supplied data. The website therefore keeps its request-for-quotation flow and does not display prices or claim availability. Product names are preserved in their source language when translations were not supplied.
 
-## 4. Connect the RFQ backend
-`src/services/rfq.ts` — `submitRfq()` currently stores the request in `localStorage` and returns a reference
-(`MIS-RFQ-YYMMDD-XXXX`). POST the payload + files to `siteConfig.rfq.endpoint` and return the server reference.
+The imported records are in `src/data/source-products.json`; selected supplier product photos are in `public/catalog/`. The rest of the website reads products through `src/services/catalog.ts`.
 
-## Structure
+To re-import from the source folder, export the RENNSTEIG workbook and run the importer:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/export-openxml-catalogues.ps1 -SourceRoot "C:\path\to\IDS database\IDS database" -OutputFile ".catalog-import\rennsteig.json"
+node scripts/import-source-catalog.mjs "C:\path\to\IDS database\IDS database"
 ```
-src/config     site configuration
-src/data       typed bilingual data (brands, categories, products, cities)
-src/i18n       en / ar dictionaries + provider (dir/lang switching)
-src/state      quotation list (reducer + localStorage), toasts
-src/services   catalogue + RFQ data-access layer
-src/components shared UI      src/pages routes
+
+The importer copies a representative set of product photos into the site; it does not copy the full multi-gigabyte image archive.
+
+## Business details and RFQ backend
+
+- `src/config/site.ts` holds phone, WhatsApp, email, address, hours, map, and attachment settings. Empty contact fields show placeholders.
+- `src/services/rfq.ts` currently stores requests in the browser. Connect it to a server endpoint before using it as a production RFQ inbox.
+
+## Development
+
+```sh
+npm ci
+npm run dev
+npm run build
+npm run preview
 ```
+
+Vercel serves the Vite build from `dist` and rewrites direct page requests to the single-page app entry point.

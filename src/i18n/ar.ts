@@ -235,6 +235,7 @@ export const ar: Dict = {
     rowRef: "مرجع MIS",
     rowStatus: "حالة الكتالوج",
     rowStatusV: "بيان تجريبي",
+    rowStatusR: "بيان من كتالوج المورد",
     waText: "مرحباً MIS، أرغب في الحصول على عرض سعر للمنتج: {name} ({ref}).",
   },
   quote: {

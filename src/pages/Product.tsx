@@ -25,13 +25,14 @@ export default function ProductPage() {
   const brand = getBrand(product.brand);
   const cat = getCategory(product.category);
   const related = getRelated(product, 4);
+  const description = tr(product.description);
 
   const rows: [string, React.ReactNode][] = [
     [t("product.rowBrand"), <Link key="b" to={`/brand/${product.brand}`} className="font-semibold hover:text-signal">{brand?.name}</Link>],
     [t("product.rowCategory"), <Link key="c" to={`/category/${product.category}`} className="font-semibold hover:text-signal">{cat ? tr(cat.name) : ""}</Link>],
     [t("product.rowRef"), <span key="r" className="mono font-semibold">{product.ref}</span>],
     ...product.specs.map((s): [string, React.ReactNode] => [tr(s.label), tr(s.value)]),
-    [t("product.rowStatus"), product.placeholder ? t("product.rowStatusV") : "—"],
+    [t("product.rowStatus"), product.placeholder ? t("product.rowStatusV") : t("product.rowStatusR")],
   ];
 
   return (
@@ -78,7 +79,7 @@ export default function ProductPage() {
             {t("product.ref")}: <span className="font-semibold text-ink">{product.ref}</span>
           </p>
 
-          <p className="mt-6 max-w-xl text-lg text-ink/70">{tr(product.description)}</p>
+          {description && <p className="mt-6 max-w-xl text-lg text-ink/70">{description}</p>}
 
           {product.placeholder && (
             <p className="mt-4 flex items-start gap-2 border-s-4 border-ink/30 bg-ink/5 p-3 text-sm text-ink/70">

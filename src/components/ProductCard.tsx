@@ -25,6 +25,7 @@ export function CategoryChip({ slug }: { slug: string }) {
 export function ProductCard({ product, view = "grid" }: { product: Product; view?: "grid" | "list" }) {
   const { tr, t } = useI18n();
   const brand = getBrand(product.brand);
+  const description = tr(product.description);
   const to = `/product/${product.id}`;
 
   const body = (
@@ -49,7 +50,7 @@ export function ProductCard({ product, view = "grid" }: { product: Product; view
           <ProductImage product={product} className="aspect-[4/3] sm:h-full sm:aspect-auto" />
         </Link>
         <div className="relative flex flex-1 flex-col justify-center gap-2 p-4">{body}
-          <p className="line-clamp-1 text-sm text-ink/60">{tr(product.description)}</p>
+          {description && <p className="line-clamp-1 text-sm text-ink/60">{description}</p>}
         </div>
         <div className="flex items-center gap-3 p-4 sm:w-56 sm:shrink-0 sm:border-s sm:border-ink/10">
           <div className="w-full">
@@ -65,9 +66,11 @@ export function ProductCard({ product, view = "grid" }: { product: Product; view
       <Link to={to} className="block" aria-label={tr(product.name)} tabIndex={-1}>
         <ProductImage product={product} />
       </Link>
-      <span className="label absolute top-2 end-2 bg-ink px-1.5 py-0.5 text-[9px] text-white" aria-hidden>
-        {t("common.placeholderBadge")}
-      </span>
+      {product.placeholder && (
+        <span className="label absolute top-2 end-2 bg-ink px-1.5 py-0.5 text-[9px] text-white" aria-hidden>
+          {t("common.placeholderBadge")}
+        </span>
+      )}
       <div className="relative flex flex-1 flex-col gap-2 p-4">
         {body}
         <div className="mt-auto pt-3">

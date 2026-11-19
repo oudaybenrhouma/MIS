@@ -1,6 +1,7 @@
 node_modules/
 dist/
 .vercel/
+.catalog-import/
 .env
 .env.*
 !.env.example

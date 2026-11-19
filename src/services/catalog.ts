@@ -117,16 +117,25 @@ export const countProducts = (filter: { category?: string; brand?: string }) =>
   ).length;
 
 export function featuredProducts(limit = 8): Product[] {
-  // one per category first, for variety
-  const seen = new Set<string>();
+  // Show the breadth of the supplied portfolio before repeating a brand.
+  const seenBrands = new Set<string>();
   const first: Product[] = [];
   for (const p of products) {
-    if (!seen.has(p.category)) {
-      seen.add(p.category);
+    if (!seenBrands.has(p.brand)) {
+      seenBrands.add(p.brand);
       first.push(p);
     }
   }
-  return first.slice(0, limit);
+  if (first.length >= limit) return first.slice(0, limit);
+  const seenProducts = new Set(first.map((product) => product.id));
+  for (const p of products) {
+    if (!seenProducts.has(p.id)) {
+      seenProducts.add(p.id);
+      first.push(p);
+      if (first.length >= limit) break;
+    }
+  }
+  return first;
 }
 
 export function brandsInCategory(slug: string) {
