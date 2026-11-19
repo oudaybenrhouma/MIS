@@ -11,7 +11,7 @@ export function Arrow({ className = "size-4" }: { className?: string }) {
 export function usePageTitle(title?: string) {
   const { lang } = useI18n();
   useEffect(() => {
-    const base = lang === "ar" ? "MIS — ماستر للتوريدات الصناعية" : "MIS — Master Industrial Supplies";
+    const base = lang === "ar" ? "MIS — الإمداد الصناعي المتقن" : "MIS — Master Industrial Supplies";
     document.title = title ? `${title} | ${base}` : base;
   }, [title, lang]);
 }

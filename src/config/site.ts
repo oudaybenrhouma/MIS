@@ -12,8 +12,7 @@ import type { L } from "@/data/types";
 export const siteConfig = {
   name: {
     en: "Master Industrial Supplies",
-    // TODO: confirm the official Arabic trade name with MIS.
-    ar: "ماستر للتوريدات الصناعية",
+    ar: "الإمداد الصناعي المتقن",
   } satisfies L,
   shortName: "MIS",
 
