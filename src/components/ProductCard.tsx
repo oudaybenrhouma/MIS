@@ -6,6 +6,7 @@ import type { Product } from "@/data/types";
 import { ProductImage } from "./ProductImage";
 import { AddToQuote } from "./AddToQuote";
 import { CategoryIcon } from "./CategoryIcon";
+import { RetailOffer } from "./RetailOffer";
 
 export function CategoryChip({ slug }: { slug: string }) {
   const { tr } = useI18n();
@@ -54,6 +55,7 @@ export function ProductCard({ product, view = "grid" }: { product: Product; view
         </div>
         <div className="flex items-center gap-3 p-4 sm:w-56 sm:shrink-0 sm:border-s sm:border-ink/10">
           <div className="w-full">
+            <RetailOffer productId={product.id} compact />
             <AddToQuote product={product} />
           </div>
         </div>
@@ -74,6 +76,7 @@ export function ProductCard({ product, view = "grid" }: { product: Product; view
       <div className="relative flex flex-1 flex-col gap-2 p-4">
         {body}
         <div className="mt-auto pt-3">
+          <RetailOffer productId={product.id} compact />
           <AddToQuote product={product} />
         </div>
       </div>

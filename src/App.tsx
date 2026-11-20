@@ -16,6 +16,7 @@ import Contact from "@/pages/Contact";
 import Faq from "@/pages/Faq";
 import NotFound from "@/pages/NotFound";
 import Admin from "@/pages/Admin";
+import { ProductOfferProvider } from "@/state/productOffers";
 
 /**
  * Browser routing gives each catalogue page a clean, shareable URL. Vercel's
@@ -27,6 +28,7 @@ export default function App() {
       <I18nProvider>
         <ToastProvider>
           <QuoteProvider>
+            <ProductOfferProvider>
             <Routes>
               <Route path="admin" element={<Admin />} />
               <Route element={<Layout />}>
@@ -46,6 +48,7 @@ export default function App() {
                 <Route path="*" element={<NotFound />} />
               </Route>
             </Routes>
+            </ProductOfferProvider>
           </QuoteProvider>
         </ToastProvider>
       </I18nProvider>

@@ -13,11 +13,14 @@ import { ProductCard } from "@/components/ProductCard";
 import { Reveal } from "@/components/Reveal";
 import { Arrow, usePageTitle } from "@/components/common";
 import NotFound from "./NotFound";
+import { RetailOffer } from "@/components/RetailOffer";
+import { useProductOffer } from "@/state/productOffers";
 
 export default function ProductPage() {
   const { id = "" } = useParams();
   const { t, tr } = useI18n();
   const product = getProduct(id);
+  const offer = useProductOffer(id);
   usePageTitle(product ? tr(product.name) : t("product.notFound"));
 
   if (!product) return <NotFound title={t("product.notFound")} />;
@@ -90,7 +93,8 @@ export default function ProductPage() {
           {/* Quote box */}
           <div className="mt-8 border-[1.5px] border-ink bg-white p-5 shadow-[6px_6px_0_var(--color-signal)] rtl:shadow-[-6px_6px_0_var(--color-signal)] sm:p-6">
             <p className="label text-signal">{t("product.priceTitle")}</p>
-            <p className="mt-2 mb-5 text-sm text-ink/65">{t("product.priceText")}</p>
+            {offer && <div className="mt-4"><RetailOffer productId={product.id} /></div>}
+            <p className="mt-2 mb-5 text-sm text-ink/65">{offer ? t("product.retailConfirmation") : t("product.priceText")}</p>
             <AddToQuote product={product} variant="full" />
             <a
               href={whatsappLink(t("product.waText", { name: tr(product.name), ref: product.ref }))}

@@ -8,6 +8,8 @@ The catalogue includes 9,238 product records imported from the supplier database
 
 Supplier prices and stock levels were not present in the supplied data. The website therefore keeps its request-for-quotation flow and does not display prices or claim availability. Product names are preserved in their source language when translations were not supplied.
 
+Retail offers are stored separately from the supplier catalogue in `mis_product_offers`. A product stays quote-only unless staff explicitly publish a confirmed price, currency, stock count, and sales unit in the admin page. The public offer API returns only enabled entries. This offer layer does not accept payment or promise delivery; MIS must confirm both with the customer until those operating rules and integrations are configured.
+
 The imported records are in `src/data/source-products.json`; 9,157 of the 9,238 product records have a local image, using 8,768 distinct source photos in `public/catalog/`. JPEG photos are resized to 700 px and compressed for web delivery. The rest of the website reads products through `src/services/catalog.ts`.
 
 To re-import from the source folder, export the RENNSTEIG workbook and run the importer:
@@ -26,8 +28,9 @@ The importer matches product references to the available source photos; the opti
 - Quote requests are accepted by Vercel Functions in `api/`, stored in Neon Postgres, and their attachments go to a private Vercel Blob store. Confirmation details stay in the visitor's current browser session.
 - Create a Neon database and a **private** Blob store from the Vercel project's Storage tab. Set `DATABASE_URL` and `RFQ_ADMIN_TOKEN` for the project; link the Blob store so Vercel provides `BLOB_READ_WRITE_TOKEN` (and `BLOB_STORE_ID` where required). Set all variables in Production, Preview, and Development as needed.
 - Run `database/schema.sql` in the Neon SQL Editor before accepting quote requests. The API returns HTTP 503 with a clear form message until database and Blob credentials are connected.
+- Apply later additive database changes with `DATABASE_URL` set for the intended environment, for example `npm run db:migrate -- 002_product_offers.sql`.
 - For local development, use `vercel env pull .env.local` and `vercel dev` so the API functions and storage bindings are available. `npm run dev` serves only the Vite frontend.
-- Admin-only API: `GET /api/rfqs` lists recent requests, and `GET /api/rfq-attachments?path=...` downloads an attachment. Both require `Authorization: Bearer <RFQ_ADMIN_TOKEN>`; keep this token private.
+- Admin-only APIs: `GET /api/rfqs` lists recent requests, `PATCH /api/rfqs` updates request status, `GET /api/product-offers?admin=1` lists all offer settings, and `PATCH /api/product-offers` saves an offer. `GET /api/rfq-attachments?path=...` downloads an attachment. Admin endpoints require `Authorization: Bearer <RFQ_ADMIN_TOKEN>`; keep this token private.
 
 ## Development
 

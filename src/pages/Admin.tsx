@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Download, LogOut, RefreshCw, ShieldCheck } from "lucide-react";
 import type { RfqPayload } from "@/services/rfq";
+import { AdminProductManager } from "@/components/AdminProductManager";
 
 type Submission = {
   reference: string;
@@ -21,6 +22,7 @@ export default function Admin() {
   const [selected, setSelected] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [view, setView] = useState<"rfqs" | "products">("rfqs");
 
   async function load(auth = token, before?: string, append = false) {
     if (!auth) return;
@@ -55,7 +57,7 @@ export default function Admin() {
 
   function logout() {
     sessionStorage.removeItem(TOKEN_KEY);
-    setToken(""); setDraft(""); setSubmissions([]); setSelected(null); setNextBefore(null); setError("");
+    setToken(""); setDraft(""); setSubmissions([]); setSelected(null); setNextBefore(null); setError(""); setView("rfqs");
   }
 
   async function download(path: string, name: string) {
@@ -97,7 +99,7 @@ export default function Admin() {
           <span className="grid h-10 w-10 place-items-center bg-ink text-lg font-black text-white">M<span className="text-signal">/</span>S</span>
           <span><span className="block text-sm font-extrabold uppercase tracking-wide">Master Industrial Supplies</span><span className="label text-mist">Quote request admin</span></span>
         </a>
-        {token && <div className="flex items-center gap-2"><button onClick={() => void load()} disabled={loading} className="btn btn-line btn-sm"><RefreshCw size={15} className={loading ? "spin" : ""}/> Refresh</button><button onClick={logout} className="btn btn-ink btn-sm"><LogOut size={15}/> Sign out</button></div>}
+        {token && <div className="flex items-center gap-2">{view === "rfqs" ? <><button onClick={() => setView("products")} className="btn btn-line btn-sm">Retail products</button><button onClick={() => void load()} disabled={loading} className="btn btn-line btn-sm"><RefreshCw size={15} className={loading ? "spin" : ""}/> Refresh</button></> : <button onClick={() => setView("rfqs")} className="btn btn-line btn-sm">Quote requests</button>}<button onClick={logout} className="btn btn-ink btn-sm"><LogOut size={15}/> Sign out</button></div>}
       </div>
     </header>
     <div className="mx-auto max-w-7xl px-5 py-8 md:px-8">
@@ -105,7 +107,7 @@ export default function Admin() {
         <ShieldCheck className="mb-5 text-signal" size={30}/><p className="label mb-3 text-signal">Restricted area</p><h1 className="display mb-4 text-4xl">Admin sign in</h1><p className="mb-7 text-sm leading-6 text-steel">Enter the RFQ admin key to view quote requests and securely download their attachments.</p>
         <form onSubmit={login} className="space-y-4"><label className="block text-sm font-semibold" htmlFor="admin-key">Admin key</label><input id="admin-key" className="field" type="password" autoComplete="current-password" value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Paste admin key" required/><button className="btn btn-red w-full" type="submit" disabled={loading}>{loading ? "Checking…" : "Open dashboard"}</button></form>
         {error && <p role="alert" className="mt-4 border-l-2 border-signal bg-red-50 p-3 text-sm text-signal-deep">{error}</p>}
-      </section> : <>
+      </section> : view === "products" ? <section><div className="mb-6"><p className="label mb-2 text-signal">Sales workspace</p><h1 className="display text-4xl md:text-5xl">Retail products</h1><p className="mt-3 max-w-2xl text-sm leading-6 text-mist">Publish a product only after its price, sale unit, and stock count are confirmed. Every other item remains quote-only.</p></div><AdminProductManager token={token}/></section> : <>
         <div className="mb-7 flex flex-col justify-between gap-4 md:flex-row md:items-end"><div><p className="label mb-2 text-signal">Sales workspace</p><h1 className="display text-4xl md:text-5xl">Quote requests</h1><p className="mt-3 text-sm text-mist">{submissions.length} loaded · newest first</p></div><input aria-label="Search quote requests" className="field max-w-sm" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search name, company, reference…"/></div>
         {error && <p role="alert" className="mb-5 border-l-2 border-signal bg-red-50 p-3 text-sm text-signal-deep">{error}</p>}
         {loading && submissions.length === 0 ? <p className="border border-line bg-white p-8 text-sm">Loading quote requests…</p> : <div className="grid gap-5 lg:grid-cols-[minmax(280px,0.85fr)_minmax(0,1.5fr)]">

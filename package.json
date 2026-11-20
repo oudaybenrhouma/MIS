@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "catalog:audit": "node scripts/audit-catalog.mjs"
+    "catalog:audit": "node scripts/audit-catalog.mjs",
+    "db:migrate": "node scripts/apply-migration.mjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.2.1",
